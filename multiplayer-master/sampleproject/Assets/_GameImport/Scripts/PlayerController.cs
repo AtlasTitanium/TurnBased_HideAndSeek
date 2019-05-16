@@ -31,7 +31,7 @@ public class PlayerController : MonoBehaviour
             
             if(Input.GetKeyDown(KeyCode.E)){
                 Debug.Log("rotate Right");
-                transform.Rotate(0,90,0);
+                transform.Rotate(0,1,0);
                 forwardNumber--;
                 backwardNumber--;
                 leftNumber--;
@@ -40,7 +40,7 @@ public class PlayerController : MonoBehaviour
             }
             if(Input.GetKeyDown(KeyCode.Q)){
                 Debug.Log("Rotate left");
-                transform.Rotate(0,-90,0);
+                transform.Rotate(0,-1,0);
                 forwardNumber++;
                 backwardNumber++;
                 leftNumber++;
@@ -115,19 +115,20 @@ public class PlayerController : MonoBehaviour
     private void Move(int moveNumber){
         if(forwardNumber == moveNumber){
             Debug.Log("forward");
-            currentGrid.CheckRelocation(RelocationDirection.Front, this.gameObject);
+            GetComponent<Rigidbody>().velocity = transform.forward * 10;
+            //currentGrid.CheckRelocation(RelocationDirection.Front, this.gameObject);
         }
         if(rightNumber == moveNumber){
             Debug.Log("Right");
-            currentGrid.CheckRelocation(RelocationDirection.Right, this.gameObject);
+            //currentGrid.CheckRelocation(RelocationDirection.Right, this.gameObject);
         }
         if(backwardNumber == moveNumber){
             Debug.Log("backward");
-            currentGrid.CheckRelocation(RelocationDirection.Back, this.gameObject);
+            //currentGrid.CheckRelocation(RelocationDirection.Back, this.gameObject);
         }
         if(leftNumber == moveNumber){
             Debug.Log("left");
-            currentGrid.CheckRelocation(RelocationDirection.Left, this.gameObject);
+            //currentGrid.CheckRelocation(RelocationDirection.Left, this.gameObject);
         }
     }
 }
