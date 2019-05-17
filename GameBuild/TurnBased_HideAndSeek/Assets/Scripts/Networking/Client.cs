@@ -54,7 +54,6 @@ public class Client : MonoBehaviour
                 uint value = stream.ReadUInt(ref readerCtx);
 
                 clientText.text += "\nGot the value = " + value + " back from the server";
-                m_Connection.Disconnect(m_Driver);
                 m_Connection = default(NetworkConnection); //make sure connection is true
             }
             else if (cmd == NetworkEvent.Type.Disconnect)
