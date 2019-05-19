@@ -10,15 +10,13 @@ using UdpCNetworkDriver = Unity.Networking.Transport.UdpNetworkDriver;
 
 public class Server : MonoBehaviour
 {
-    public Text serverText;
     public UdpCNetworkDriver m_Driver;
     private NativeList<NetworkConnection> m_Connections;
 
     void Start(){
         m_Driver = new UdpCNetworkDriver(new INetworkParameter[0]);
         if (m_Driver.Bind( NetworkEndPoint.Parse("0.0.0.0", 9000 ) ) != 0){
-            //Debug.Log("Failed to bind to port ...");
-            serverText.text += "\nFailed to bind to port ...";
+            Debug.Log("Failed to bind to port ...");
         }else{
             m_Driver.Listen();
         }
@@ -32,27 +30,13 @@ public class Server : MonoBehaviour
 
     void Update(){
         m_Driver.ScheduleUpdate().Complete();
+        UpdateConnections();
         WorkServer();
+        SendUpdate();
     }
 
     private void WorkServer(){
         Debug.Log("Lenght of connections: " + m_Connections.Length);
-
-        // Clean up connections
-        for (int i = 0; i < m_Connections.Length; i++){
-            if (!m_Connections[i].IsCreated){
-                m_Connections.RemoveAtSwapBack(i);
-                --i;
-                serverText.text += "\nServer now has " + m_Connections.Length + " players";
-            }
-        }
-
-        // Accept new connections
-        NetworkConnection c;
-        while ((c = m_Driver.Accept()) != default(NetworkConnection)){
-            m_Connections.Add(c);
-            serverText.text += "\nAccepted a connection";
-        }
 
         DataStreamReader stream;
         for (int i = 0; i < m_Connections.Length; i++){
@@ -61,27 +45,69 @@ public class Server : MonoBehaviour
 
             NetworkEvent.Type cmd;
             while ((cmd = m_Driver.PopEventForConnection(m_Connections[i], out stream)) != NetworkEvent.Type.Empty){
-                if (cmd == NetworkEvent.Type.Data){
-                    //Try and read the data from the package
-                    var readerCtx = default(DataStreamReader.Context);
-                    uint number = stream.ReadUInt(ref readerCtx);
+                switch (cmd){
+                    case NetworkEvent.Type.Data:
+                        HandleData(stream, i);
+                    break;
 
-                    serverText.text += "\nClient got connected: Server now has " + m_Connections.Length + " players";
-
-                    //Now write the number back to all the clients
-                    for(int f = 0; f < m_Connections.Length; f++){
-                        using (var writer = new DataStreamWriter(4, Allocator.Temp)){
-                            writer.Write(number);
-                            m_Driver.Send(NetworkPipeline.Null, m_Connections[f], writer);
-                        }
-                    }
-                } else if (cmd == NetworkEvent.Type.Disconnect){
-                    serverText.text += "\nClient disconnected from server";
-                    m_Connections[i] = default(NetworkConnection);
+                    case NetworkEvent.Type.Disconnect:
+                        PlayerDisconnect(i);
+                    break;
                 }
             }
         }
     }
 
+    private void UpdateConnections(){
+        // Clean up connections
+        for (int i = 0; i < m_Connections.Length; i++){
+            if (!m_Connections[i].IsCreated){
+                m_Connections.RemoveAtSwapBack(i);
+                --i;
+            }
+        }
 
+        // Accept new connections
+        NetworkConnection c;
+        while ((c = m_Driver.Accept()) != default(NetworkConnection)){
+            m_Connections.Add(c);
+            Debug.Log("Accepted a connection");
+        }
+
+        Debug.Log("Server now has " + m_Connections.Length + " players");
+    }
+
+    private void HandleData(DataStreamReader stream, int connectionIndex){
+        //read incoming data
+        var readerCtx = default(DataStreamReader.Context);
+        ServerEvent eventName = (ServerEvent)stream.ReadUInt(ref readerCtx);
+        ServerEventManager.ServerEvents[eventName](this, stream, ref readerCtx, m_Connections[connectionIndex]);
+    }
+
+    private void SendUpdate(){
+        for (int i = 0; i < m_Connections.Length; i++){
+            if (!m_Connections[i].IsCreated)
+                continue;
+
+            uint updateInt = 0;
+            using (var writer = new DataStreamWriter(10, Allocator.Temp)) {
+                writer.Write((uint)ClientEvent.NUMBER_SEND);
+                writer.Write((uint)updateInt);
+                m_Connections[i].Send(m_Driver, writer);
+            }
+        }
+    }
+
+    private void PlayerDisconnect(int playerIndex){
+        Debug.Log("Client disconnected from server");
+        m_Connections[playerIndex] = default(NetworkConnection);
+    }
+
+    public void GetNumber(uint givenNumber){
+        Debug.Log("got update number from Client: " + givenNumber);
+    }
+
+    public void PlayerInit(uint playerID){
+        Debug.Log("player joined, id: " + playerID);
+    }
 }

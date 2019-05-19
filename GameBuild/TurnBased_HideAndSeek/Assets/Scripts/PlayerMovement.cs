@@ -4,9 +4,16 @@ using UnityEngine;
 
 public class PlayerMovement : MonoBehaviour
 {
+    private int i = 0;
+    private Client client;
+
+    void Start(){
+        client = GetComponent<Client>();
+    }
     void Update(){
-        if(Input.GetKeyDown(KeyCode.W)){
-            Vector3 newPos = new Vector3(transform.position.x, transform.position.y, transform.position.z + 1);
+        if(Input.GetKey(KeyCode.W)){
+            client.SendNumber(1);
+            i++;
         }
     }
 
