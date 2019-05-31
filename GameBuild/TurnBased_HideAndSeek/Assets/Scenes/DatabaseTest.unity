@@ -1043,7 +1043,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9ac71fc475e1a454caa2d302b32ffef2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  name: {fileID: 0}
+  username: {fileID: 0}
   pass: {fileID: 0}
   button: {fileID: 0}
   register: 0
@@ -1717,8 +1717,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9ac71fc475e1a454caa2d302b32ffef2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  name: {fileID: 1508364334}
-  pass: {fileID: 1247031524}
+  username: {fileID: 1239345311}
+  pass: {fileID: 1465919396}
   button: {fileID: 616084103}
   register: 0
 --- !u!1 &1380682635
@@ -2634,8 +2634,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9ac71fc475e1a454caa2d302b32ffef2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  name: {fileID: 1170162423}
-  pass: {fileID: 309820945}
+  username: {fileID: 387090680}
+  pass: {fileID: 832457580}
   button: {fileID: 1986801912}
   register: 1
 --- !u!1 &1874985771

@@ -2,11 +2,12 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Networking;
 
 public class SQLDatabaseTalk : MonoBehaviour
 { 
-    public Text name;
-    public Text pass;
+    public InputField username;
+    public InputField pass;
     public Button button;
     private string loginName;
     private string loginPassword;
@@ -20,7 +21,7 @@ public class SQLDatabaseTalk : MonoBehaviour
         StartCoroutine(Connect());
     }
     IEnumerator Connect(){
-        loginName = name.text;
+        loginName = username.text;
         loginPassword = pass.text;
 
         WWWForm form = new WWWForm();
@@ -28,25 +29,23 @@ public class SQLDatabaseTalk : MonoBehaviour
         form.AddField("LoginPassword", loginPassword);
 
         if(register){
-            using(WWW www = new WWW("https://studenthome.hku.nl/~pepijn.kok/PHPstuff/Register.php", form)){
-                yield return www;
+            using(UnityWebRequest www = UnityWebRequest.Post("https://studenthome.hku.nl/~pepijn.kok/PHPstuff/Register.php", form)){
+                yield return www.SendWebRequest();
 
-                if(www.text.Contains("0")){
+                if(www.downloadHandler.text.Contains("0")){
                     Debug.Log("Connected Succesfully");
                 } else{
-
-                    Debug.LogError("Failed to connect, Error #" + www.text);
+                    Debug.LogError("Failed to connect, Error #" + www.downloadHandler.text);
                 }
             }
         } else {
-            using(WWW www = new WWW("https://studenthome.hku.nl/~pepijn.kok/PHPstuff/Login.php", form)){
-                yield return www;
+            using(UnityWebRequest www = UnityWebRequest.Post("https://studenthome.hku.nl/~pepijn.kok/PHPstuff/Login.php", form)){
+                yield return www.SendWebRequest();
 
-                if(www.text.Contains("0")){
+                if(www.downloadHandler.text.Contains("0")){
                     Debug.Log("Connected Succesfully");
                 } else{
-
-                    Debug.LogError("Failed to connect, Error #" + www.text);
+                    Debug.LogError("Failed to connect, Error #" + www.downloadHandler.text);
                 }
             }
         }

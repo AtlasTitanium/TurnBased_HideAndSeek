@@ -7,38 +7,57 @@ using Unity.Networking.Transport;
 
 public class Client : MonoBehaviour
 {
-    public uint playerID;
+    public GameObject enemyPrefab;
     public UdpNetworkDriver m_Driver;
     public NetworkConnection m_Connection;
+    public uint playerID;
+
+    [HideInInspector]
+    public string ipAdress;
+    private List<Enemy> enemies = new List<Enemy>();
+    private bool connected;
     
     void Start () { 
+        //Setup server connection
         m_Driver = new UdpNetworkDriver(new INetworkParameter[0]);
         m_Connection = default(NetworkConnection);
 
-        var endpoint = NetworkEndPoint.Parse("127.0.0.1", 9000);
+        var endpoint = NetworkEndPoint.Parse(ipAdress, 9000);
         m_Connection = m_Driver.Connect(endpoint);
+
+        StartCoroutine(WaitIfConnected(15));
     }
+
     public void OnDestroy() { 
         m_Driver.Dispose();
     }
 
-    void Update() { 
+    void FixedUpdate() { 
         m_Driver.ScheduleUpdate().Complete();
-        WorkClient();
-        SendNumber(0);
-    }
-
-    private void WorkClient(){
         if (!m_Connection.IsCreated){
             return;
         }
+        WorkClient();
+    }
 
+    #region Client Functions
+    //--------------Client Functions------------    
+    //wait x seconds and disconnect if it couldn't find a host
+    IEnumerator WaitIfConnected(int seconds){
+        yield return new WaitForSeconds(seconds);
+        if (!connected){
+            GameData.Instance.Disconnect();
+        }
+    }
+
+    //Get data from the server
+    private void WorkClient(){
         DataStreamReader stream;
         NetworkEvent.Type cmd;
         while ((cmd = m_Connection.PopEvent(m_Driver, out stream)) != NetworkEvent.Type.Empty) {
             switch (cmd){
                 case NetworkEvent.Type.Connect:
-                    ConnectClient(stream);
+                    ConnectClient();
                 break;
                 
                 case NetworkEvent.Type.Data:
@@ -52,38 +71,93 @@ public class Client : MonoBehaviour
         }
     }
 
-    public void SendNumber(int num){
-        using (var writer = new DataStreamWriter(8, Allocator.Temp)) {
-            writer.Write((uint)ServerEvent.NUMBER_SEND);
-            writer.Write(num);
+    //Connect the client 
+    private void ConnectClient(){
+        connected = true;
+
+        byte[] positionXInBytes = Conversions.VectorAxisToBytes(transform.position.x);
+        byte[] positionZInBytes = Conversions.VectorAxisToBytes(transform.position.z);
+
+        using (var writer = new DataStreamWriter(64, Allocator.Temp))
+        {
+            writer.Write((uint)ServerEvent.INITIALIZE_PLAYER);
+
+            writer.Write(positionXInBytes.Length);                           //Position.X lenght of Array
+            writer.Write(positionXInBytes, positionXInBytes.Length);         //PositionArray
+
+            writer.Write(positionZInBytes.Length);                           //Position.Z lenght of Array
+            writer.Write(positionZInBytes, positionXInBytes.Length);         //PositionArray
+
             m_Connection.Send(m_Driver, writer);
         }
     }
 
+    //Handle incominhg data and check it's event
     private void HandleData(DataStreamReader stream){
-        //read incoming data
         var readerCtx = default(DataStreamReader.Context);
         ClientEvent eventName = (ClientEvent)stream.ReadUInt(ref readerCtx);
         ClientEventManager.ClientEvents[eventName](this, stream, ref readerCtx, m_Connection);
     }
 
-    private void ConnectClient(DataStreamReader stream){
-        playerID = (uint)Random.Range(0,100);
-        Debug.Log("sending " + playerID + ". check if id exists (This is only a test, for the real deal, the game has to gain a player login, which is connected to a player id, which is then connected to player data like location and stuff");
-        using (var writer = new DataStreamWriter(10, Allocator.Temp))
-        {
-            writer.Write((uint)ServerEvent.INITIALIZE_PLAYER);
-            writer.Write(playerID);
-            m_Connection.Send(m_Driver, writer);
-        }
-    }
-
+    //Disconnect client correctly
     private void DisconnectClient(){
         Debug.Log("Disconnect from server");
         m_Connection = default(NetworkConnection); //make sure connection is true
     }
+    #endregion
+    
+    #region Player Functions
 
-    public void GetNumber(uint number){
-        Debug.Log("got update number from Server: " + number);
+    #region ping
+    public void PingServer(){
+        using (var writer = new DataStreamWriter(8, Allocator.Temp)) {
+            writer.Write((uint)ServerEvent.PING);
+            m_Connection.Send(m_Driver, writer);
+        }
     }
+
+    public void RecievePing(){
+        PingServer();
+    }
+    #endregion
+
+    public void MovePlayer(Vector2 pos, int rot){
+        byte[] positionXInBytes = Conversions.VectorAxisToBytes(pos.x);
+        byte[] positionZInBytes = Conversions.VectorAxisToBytes(pos.y);
+
+        using (var writer = new DataStreamWriter(64, Allocator.Temp)) {
+            writer.Write((uint)ServerEvent.MOVE);
+
+            writer.Write(positionXInBytes.Length);                           //Position.X lenght of Array
+            writer.Write(positionXInBytes, positionXInBytes.Length);         //PositionArray
+
+            writer.Write(positionZInBytes.Length);                           //Position.Z lenght of Array
+            writer.Write(positionZInBytes, positionXInBytes.Length);         //PositionArray
+
+            writer.Write((uint)rot);                                         //Y rotation
+
+            writer.Write((uint)playerID);
+
+            m_Connection.Send(m_Driver, writer);
+        }
+    }
+
+    public void MoveEnemy(int enemyID, Vector2 _pos, int _rot){
+        foreach(Enemy enemy in enemies){
+            if(enemy.id == enemyID){
+                enemy.transform.position = new Vector3(_pos.x, this.transform.position.y, _pos.y);
+                enemy.transform.rotation = Quaternion.Euler(0,_rot,0);
+            }
+        }
+    }
+
+    public void CreateEnemy(Vector2 position, int enemyID){
+        Vector3 pos = new Vector3(position.x, this.transform.position.y, position.y);
+        GameObject enemyObj = Instantiate(enemyPrefab, pos, Quaternion.identity);
+        Enemy enemy = enemyObj.AddComponent<Enemy>();
+        enemy.id = enemyID;
+        enemies.Add(enemy);
+    }
+
+    #endregion
 }
