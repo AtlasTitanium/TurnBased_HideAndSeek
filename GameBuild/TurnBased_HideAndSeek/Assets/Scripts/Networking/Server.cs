@@ -15,6 +15,8 @@ public class Server : MonoBehaviour
 
     [HideInInspector]
     public string ipString;
+    [HideInInspector]
+    public GameObject[] spawnLocations;
 
     void Start(){
         m_Driver = new UdpCNetworkDriver(new INetworkParameter[0]);
@@ -115,12 +117,14 @@ public class Server : MonoBehaviour
     
     #endregion
 
-    public void PlayerInit(Vector2 pos, NetworkConnection client){
-        Debug.Log("player joined, id: " + m_Connections.Length);
-        Debug.Log("Server now has " + m_Connections.Length + " players");
+    //Instantiate client and other enemies for every client
+    public void PlayerInit(NetworkConnection client){
+        // Debug.Log("player joined, id: " + m_Connections.Length);
+        // Debug.Log("Server now has " + m_Connections.Length + " players");
 
-        byte[] positionXInBytes = Conversions.VectorAxisToBytes(pos.x);
-        byte[] positionZInBytes = Conversions.VectorAxisToBytes(pos.y);
+        Debug.Log("spawn location: " + spawnLocations[m_Connections.Length - 1].transform.position);
+        byte[] positionXInBytes = Conversions.VectorAxisToBytes(spawnLocations[m_Connections.Length-1].transform.position.x);
+        byte[] positionZInBytes = Conversions.VectorAxisToBytes(spawnLocations[m_Connections.Length-1].transform.position.z);
         for (int i = 0; i < m_Connections.Length; i++){
             if (!m_Connections[i].IsCreated)
                 continue;
@@ -140,9 +144,18 @@ public class Server : MonoBehaviour
                     m_Connections[i].Send(m_Driver, writer);
                 }
             } else {
-                //For the initializing client, send only id
+                //For the initializing client, send id and spawn location
                 using (var writer = new DataStreamWriter(64, Allocator.Temp)) {
                     writer.Write((uint)ClientEvent.SET_CLIENT);
+                    
+                    writer.Write(positionXInBytes.Length);                           //
+                    writer.Write(positionXInBytes, positionXInBytes.Length);         //
+
+                    writer.Write(positionZInBytes.Length);                           //
+                    writer.Write(positionZInBytes, positionXInBytes.Length);         //
+
+                    writer.Write((uint)spawnLocations[m_Connections.Length-1].transform.eulerAngles.y); //Y rotation
+
                     writer.Write((uint)m_Connections.Length);
                     client.Send(m_Driver, writer);
                 }
@@ -153,11 +166,11 @@ public class Server : MonoBehaviour
                         using (var writer = new DataStreamWriter(64, Allocator.Temp)) {
                             writer.Write((uint)ClientEvent.CREATE_ENEMY);
 
-                            writer.Write(positionXInBytes.Length);                           //Position.X lenght of Array
-                            writer.Write(positionXInBytes, positionXInBytes.Length);         //PositionArray
+                            writer.Write(positionXInBytes.Length);                          
+                            writer.Write(positionXInBytes, positionXInBytes.Length);         
 
-                            writer.Write(positionZInBytes.Length);                           //Position.Z lenght of Array
-                            writer.Write(positionZInBytes, positionXInBytes.Length);         //PositionArray
+                            writer.Write(positionZInBytes.Length);                         
+                            writer.Write(positionZInBytes, positionXInBytes.Length);         
 
                             writer.Write((uint)f+1);
                             client.Send(m_Driver, writer);
@@ -170,6 +183,7 @@ public class Server : MonoBehaviour
         PingClients();
     }
 
+    //Move the player around
     public void MovePlayer(Vector2 pos, int rot, int clientID, NetworkConnection client){
         byte[] positionXInBytes = Conversions.VectorAxisToBytes(pos.x);
         byte[] positionZInBytes = Conversions.VectorAxisToBytes(pos.y);
@@ -191,6 +205,47 @@ public class Server : MonoBehaviour
                     writer.Write((uint)rot);                                         //Y rotation
 
                     writer.Write((uint)clientID);
+                    m_Connections[i].Send(m_Driver, writer);
+                }
+            }
+        }
+    }
+
+    //Allow the next player the turn
+    public void NextClient(NetworkConnection client){
+        for (int i = 0; i < m_Connections.Length; i++){
+            if (!m_Connections[i].IsCreated)
+                continue;
+            
+            if(m_Connections[i] == client){
+                using (var writer = new DataStreamWriter(64, Allocator.Temp)) {
+                    writer.Write((uint)ClientEvent.ALLOW_TURN);
+                    if(i+1 < m_Connections.Length){
+                        m_Connections[i+1].Send(m_Driver, writer);
+                    } else {
+                        m_Connections[0].Send(m_Driver, writer);
+                    }
+                }
+            }
+        }
+    }
+
+    //Change the given client into a different object (hider ability)
+    public void ChangePlayer(bool active, int clientID, NetworkConnection client){
+        for (int i = 0; i < m_Connections.Length; i++){
+            if (!m_Connections[i].IsCreated)
+                continue;
+            
+            int f = 0;
+            if(active){
+                f = 1;
+            }
+
+            if(m_Connections[i] != client){
+                using (var writer = new DataStreamWriter(64, Allocator.Temp)) {
+                    writer.Write((uint)ClientEvent.CHANGE_ENEMIES);
+                    writer.Write((uint)clientID);
+                    writer.Write((uint)f);
                     m_Connections[i].Send(m_Driver, writer);
                 }
             }

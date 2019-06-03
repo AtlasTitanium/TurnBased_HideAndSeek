@@ -4,9 +4,10 @@ using UnityEngine;
 
 public enum ServerEvent{
     PING,
-    NUMBER_SEND,
     INITIALIZE_PLAYER,
-    MOVE
+    MOVE_CLIENT,
+    SKIP_TURN,
+    CHANGE_PLAYER
 }
 
 public enum ClientEvent{
@@ -14,14 +15,6 @@ public enum ClientEvent{
     SET_CLIENT,
     CREATE_ENEMY,
     MOVE_ENEMY,
-    MOVE
-}
-
-public enum ClientMovement{
-    MOVE_FORWARD,
-    MOVE_LEFT,
-    MOVE_RIGHT,
-    MOVE_BACKWARD,
-    ROTATE_LEFT,
-    ROTATE_RIGHT
+    ALLOW_TURN,
+    CHANGE_ENEMIES
 }

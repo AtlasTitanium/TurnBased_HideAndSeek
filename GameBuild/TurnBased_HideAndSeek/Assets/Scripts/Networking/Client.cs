@@ -7,17 +7,28 @@ using Unity.Networking.Transport;
 
 public class Client : MonoBehaviour
 {
+    public int seekerAmountOfAbilitySteps;
     public GameObject enemyPrefab;
     public UdpNetworkDriver m_Driver;
     public NetworkConnection m_Connection;
-    public uint playerID;
 
+    //initializable variables
+    [HideInInspector]
+    public uint playerID;
     [HideInInspector]
     public string ipAdress;
+    [HideInInspector]
+    public bool seeker = false;
+
+    //Privates
+    private Player playerController;
     private List<Enemy> enemies = new List<Enemy>();
     private bool connected;
-    
+    private int cooldownTimer;
+
     void Start () { 
+        playerController = GetComponent<Player>();
+
         //Setup server connection
         m_Driver = new UdpNetworkDriver(new INetworkParameter[0]);
         m_Connection = default(NetworkConnection);
@@ -81,13 +92,6 @@ public class Client : MonoBehaviour
         using (var writer = new DataStreamWriter(64, Allocator.Temp))
         {
             writer.Write((uint)ServerEvent.INITIALIZE_PLAYER);
-
-            writer.Write(positionXInBytes.Length);                           //Position.X lenght of Array
-            writer.Write(positionXInBytes, positionXInBytes.Length);         //PositionArray
-
-            writer.Write(positionZInBytes.Length);                           //Position.Z lenght of Array
-            writer.Write(positionZInBytes, positionXInBytes.Length);         //PositionArray
-
             m_Connection.Send(m_Driver, writer);
         }
     }
@@ -121,12 +125,80 @@ public class Client : MonoBehaviour
     }
     #endregion
 
+    #region Functions called from Server
+    //Move the given enemy
+    public void MoveEnemy(int enemyID, Vector2 _pos, int _rot){
+        foreach(Enemy enemy in enemies){
+            if(enemy.id == enemyID){
+                enemy.transform.position = new Vector3(_pos.x, enemy.transform.position.y, _pos.y);
+                enemy.transform.rotation = Quaternion.Euler(0,_rot,0);
+            }
+        }
+        MovePlayer(transform.position, Mathf.RoundToInt(transform.rotation.y));
+    }
+
+    //create another player
+    public void CreateEnemy(Vector2 _pos, int enemyID){
+        Vector3 pos = new Vector3(_pos.x, this.transform.position.y, _pos.y);
+        GameObject enemyObj = Instantiate(enemyPrefab, pos, Quaternion.identity);
+        Enemy enemy = enemyObj.AddComponent<Enemy>();
+        enemy.hiderObjectLayer = playerController.hiderObjectLayer;
+        enemy.id = enemyID;
+        enemies.Add(enemy);
+        MovePlayer(transform.position, Mathf.RoundToInt(transform.rotation.y));
+    }
+
+    //it's this client's turn!
+    public void NextTurn(){
+        playerController.ableToMove = 1;
+
+        if(!playerController.abilityActive){
+            cooldownTimer++;
+            if(seeker){
+                if(playerController.seekerAbilityCooldown == cooldownTimer){
+                    cooldownTimer = 0;
+                    playerController.abilityActive = true;
+                }
+            } else {
+                if(playerController.hiderAbilityCooldown == cooldownTimer){
+                    //change the players in the game
+                    using (var writer = new DataStreamWriter(64, Allocator.Temp)) {
+                        writer.Write((uint)ServerEvent.CHANGE_PLAYER);
+                        writer.Write((uint)0); //on or off;
+                        writer.Write((uint)playerID);
+                        m_Connection.Send(m_Driver, writer);
+                    }
+                    playerController.RemoveHider();
+                    cooldownTimer = 0;
+                    playerController.abilityActive = true;
+                }
+            }
+        }
+    }
+
+    //change the enemy (hider ability)
+    public void ChangeEnemy(bool active, int enemyID){
+        foreach(Enemy enemy in enemies){
+            if(enemy.id == enemyID){
+                if(active){
+                    enemy.SetHider();
+                } else {
+                    enemy.RemoveHider();
+                }
+            }
+        }
+    }
+
+    #endregion
+    
+    #region Functions called from Player
+    //Move the player around
     public void MovePlayer(Vector2 pos, int rot){
         byte[] positionXInBytes = Conversions.VectorAxisToBytes(pos.x);
         byte[] positionZInBytes = Conversions.VectorAxisToBytes(pos.y);
 
         using (var writer = new DataStreamWriter(64, Allocator.Temp)) {
-            writer.Write((uint)ServerEvent.MOVE);
+            writer.Write((uint)ServerEvent.MOVE_CLIENT);
 
             writer.Write(positionXInBytes.Length);                           //Position.X lenght of Array
             writer.Write(positionXInBytes, positionXInBytes.Length);         //PositionArray
@@ -142,22 +214,45 @@ public class Client : MonoBehaviour
         }
     }
 
-    public void MoveEnemy(int enemyID, Vector2 _pos, int _rot){
-        foreach(Enemy enemy in enemies){
-            if(enemy.id == enemyID){
-                enemy.transform.position = new Vector3(_pos.x, this.transform.position.y, _pos.y);
-                enemy.transform.rotation = Quaternion.Euler(0,_rot,0);
+    //use the ability corresponding if the player is a hider or a seeker;
+    public void Ability(){
+        if(seeker){
+            //able to move multiple times at once
+            playerController.ableToMove += seekerAmountOfAbilitySteps;
+            playerController.abilityActive = false;
+        } else {
+            Collider[] hitColliders = Physics.OverlapBox(transform.position+transform.forward, new Vector3(0.8f,2f,0.8f), Quaternion.identity, playerController.hiderObjectLayer);
+            if(hitColliders.Length >= 1){
+                Debug.Log("there's an object");
+                //if found changeable object, change into the first found object;
+                playerController.SetHider(hitColliders[0].gameObject);
+
+                playerController.abilityActive = false;
+                
+                //change the players in the game
+                using (var writer = new DataStreamWriter(64, Allocator.Temp)) {
+                    writer.Write((uint)ServerEvent.CHANGE_PLAYER);
+                    writer.Write((uint)1); //on or off;
+                    writer.Write((uint)playerID);
+                    m_Connection.Send(m_Driver, writer);
+                }
             }
+            playerController.ableToMove++;
+        }
+
+        
+    }
+    
+    //End the player's turn
+    public void EndTurn(){
+        //end turn
+        using (var writer = new DataStreamWriter(64, Allocator.Temp)) {
+            writer.Write((uint)ServerEvent.SKIP_TURN);
+            m_Connection.Send(m_Driver, writer);
         }
     }
 
-    public void CreateEnemy(Vector2 position, int enemyID){
-        Vector3 pos = new Vector3(position.x, this.transform.position.y, position.y);
-        GameObject enemyObj = Instantiate(enemyPrefab, pos, Quaternion.identity);
-        Enemy enemy = enemyObj.AddComponent<Enemy>();
-        enemy.id = enemyID;
-        enemies.Add(enemy);
-    }
+    #endregion
 
     #endregion
 }

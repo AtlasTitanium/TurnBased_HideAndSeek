@@ -13,7 +13,9 @@ public class ServerEventManager
     public static readonly Dictionary<ServerEvent, Function> ServerEvents = new Dictionary<ServerEvent, Function>(){
         {ServerEvent.PING, Ping},
         {ServerEvent.INITIALIZE_PLAYER, PlayerInit},
-        {ServerEvent.MOVE, MoveClient}
+        {ServerEvent.MOVE_CLIENT, MoveClient},
+        {ServerEvent.SKIP_TURN, NextClient},
+        {ServerEvent.CHANGE_PLAYER, ChangePlayer}
     };
 
     public static void Ping(object caller, DataStreamReader stream, ref DataStreamReader.Context context, NetworkConnection source) {
@@ -24,16 +26,7 @@ public class ServerEventManager
     public static void PlayerInit(object caller, DataStreamReader stream, ref DataStreamReader.Context context, NetworkConnection source) {
         Server server = caller as Server;
 
-        //Get Vector2
-        int positionX_StringLength = stream.ReadInt(ref context);
-        byte[] positionX = stream.ReadBytesAsArray(ref context, positionX_StringLength);
-
-        int positionZ_StringLength = stream.ReadInt(ref context);
-        byte[] positionZ = stream.ReadBytesAsArray(ref context, positionZ_StringLength);
-
-        Vector2 position = Conversions.BytesToVector2(positionX, positionZ);
-
-        server.PlayerInit(position, source);
+        server.PlayerInit(source);
     }
 
     public static void MoveClient(object caller, DataStreamReader stream, ref DataStreamReader.Context context, NetworkConnection source) {
@@ -55,5 +48,25 @@ public class ServerEventManager
         int ID = stream.ReadInt(ref context);
 
         server.MovePlayer(position, rot, ID, source);
+    }
+
+    public static void NextClient(object caller, DataStreamReader stream, ref DataStreamReader.Context context, NetworkConnection source) {
+        Server server = caller as Server;
+        server.NextClient(source);
+    }
+
+    public static void ChangePlayer(object caller, DataStreamReader stream, ref DataStreamReader.Context context, NetworkConnection source) {
+        Server server = caller as Server;
+
+        //Set bool on or off
+        int i = stream.ReadInt(ref context);
+        bool active = false;
+        if(i >= 1){
+            active = true;
+        }
+
+        int id = stream.ReadInt(ref context);
+
+        server.ChangePlayer(active, id, source);
     }
 }

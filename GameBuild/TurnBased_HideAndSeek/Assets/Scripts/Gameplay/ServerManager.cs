@@ -18,6 +18,7 @@ public class ServerManager : MonoBehaviour
     public Text ipText;
 
     //Others
+    public GameObject[] spawnLocations;
     private GameData gameData;
 
     void Awake()
@@ -38,15 +39,32 @@ public class ServerManager : MonoBehaviour
             return;
         }
 
+      
+
+        //Instantiate server
         if(gameData.isServer){
             gameData.ipString = IPManager.GetLocalIPAddress();
             Debug.Log(gameData.ipString);
             
-            Instantiate(server,transform.position,Quaternion.identity).GetComponent<Server>().ipString = gameData.ipString;
+            Server s = Instantiate(server,transform.position,Quaternion.identity).GetComponent<Server>();
+            s.ipString = gameData.ipString;
+            s.spawnLocations = spawnLocations;
             ipText.text = "IP: " + gameData.ipString;
         }
+
+        //Instantiate Client
         if(gameData.isClient){
-            Instantiate(client,transform.position,Quaternion.identity).GetComponent<Client>().ipAdress = gameData.ipString;
+            GameObject c = Instantiate(client,transform.position,Quaternion.identity);
+            c.GetComponent<Client>().ipAdress = gameData.ipString;
+
+            //Set player as seeker or hider;
+            if(gameData.isServer){
+                c.GetComponent<Client>().seeker = true;
+                c.GetComponent<Player>().ableToMove = 0;
+            } else {
+                c.GetComponent<Client>().seeker = false;
+                c.GetComponent<Player>().ableToMove = 20;
+            }
         }
         
     }
