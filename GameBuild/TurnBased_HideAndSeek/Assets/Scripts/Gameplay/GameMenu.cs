@@ -21,14 +21,16 @@ public class GameMenu : MonoBehaviour
 
     void StartHost(){
         if(serverName.text != ""){
-            StartCoroutine(CreateHost());
+            gameData.StartServer();
+            //StartCoroutine(CreateHost());
         }
         
     }
 
     void StartJoin(){
         if(serverName.text != ""){
-            StartCoroutine(CreateClient());
+            gameData.StartClient(serverName.text);
+            //StartCoroutine(CreateClient());
         }
     }
 

@@ -134,7 +134,6 @@ public class Client : MonoBehaviour
                 enemy.transform.rotation = Quaternion.Euler(0,_rot,0);
             }
         }
-        MovePlayer(transform.position, Mathf.RoundToInt(transform.rotation.y));
     }
 
     //create another player
