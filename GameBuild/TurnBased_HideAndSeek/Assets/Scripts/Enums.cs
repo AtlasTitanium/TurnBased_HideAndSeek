@@ -7,7 +7,9 @@ public enum ServerEvent{
     INITIALIZE_PLAYER,
     MOVE_CLIENT,
     SKIP_TURN,
-    CHANGE_PLAYER
+    CHANGE_PLAYER,
+    DISCONNECT_PLAYER,
+    CHECK_ENEMY
 }
 
 public enum ClientEvent{
@@ -16,5 +18,9 @@ public enum ClientEvent{
     CREATE_ENEMY,
     MOVE_ENEMY,
     ALLOW_TURN,
-    CHANGE_ENEMIES
+    CHANGE_ENEMIES,
+    DISCONNECT,
+    DISCONNECT_ENEMY,
+    CHECKED,
+    END_GAME
 }

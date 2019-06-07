@@ -16,7 +16,11 @@ public class ClientEventManager
         {ClientEvent.MOVE_ENEMY, MoveEnemy},
         {ClientEvent.CREATE_ENEMY, CreateEnemy},
         {ClientEvent.ALLOW_TURN, NextTurn},
-        {ClientEvent.CHANGE_ENEMIES, ChangeEnemy}
+        {ClientEvent.CHANGE_ENEMIES, ChangeEnemy},
+        {ClientEvent.DISCONNECT, Disconnect},
+        {ClientEvent.DISCONNECT_ENEMY, DisconnectEnemy},
+        {ClientEvent.CHECKED, Check},
+        {ClientEvent.END_GAME, GameEnd}
     };
 
     public static void Ping(object caller, DataStreamReader stream, ref DataStreamReader.Context context, NetworkConnection source) {
@@ -39,6 +43,9 @@ public class ClientEventManager
         //Get rotation
         int rot = stream.ReadInt(ref context);
 
+        //get startTime
+        float startTime = stream.ReadFloat(ref context);
+
         //get player id
         uint playerID = stream.ReadUInt(ref context);
 
@@ -46,6 +53,7 @@ public class ClientEventManager
         client.playerID = playerID;
         client.transform.position = new Vector3(pos.x, client.transform.position.y, pos.y);
         client.transform.rotation = Quaternion.Euler(0,rot,0);
+        client.startTime = startTime;
     }
 
     public static void MoveEnemy(object caller, DataStreamReader stream, ref DataStreamReader.Context context, NetworkConnection source) {
@@ -106,5 +114,39 @@ public class ClientEventManager
         }
 
         client.ChangeEnemy(active, enemyID);
+    }
+
+    public static void Disconnect(object caller, DataStreamReader stream, ref DataStreamReader.Context context, NetworkConnection source) {
+        Client client = caller as Client;
+        client.Disconnect();
+    }
+
+    public static void DisconnectEnemy(object caller, DataStreamReader stream, ref DataStreamReader.Context context, NetworkConnection source) {
+        Client client = caller as Client;
+
+        int id = stream.ReadInt(ref context);
+        
+        client.DisconnectEnemy(id);
+    }
+
+    public static void Check(object caller, DataStreamReader stream, ref DataStreamReader.Context context, NetworkConnection source) {
+        Client client = caller as Client;
+
+        //Get id
+        int id = stream.ReadInt(ref context);
+
+        //get active
+        int i = stream.ReadInt(ref context);
+        bool isSeeker = false;
+        if(i >= 1){
+            isSeeker = true;
+        }
+
+        client.CheckedByPlayer(isSeeker, id);
+    }
+
+    public static void GameEnd(object caller, DataStreamReader stream, ref DataStreamReader.Context context, NetworkConnection source) {
+        Client client = caller as Client;
+        client.GameEnd();
     }
 }

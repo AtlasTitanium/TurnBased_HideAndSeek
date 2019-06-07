@@ -14,12 +14,13 @@ public class ServerManager : MonoBehaviour
     public GameObject client;
     public GameObject server;
 
-    //UI control
-    public Text ipText;
-
     //Others
     public GameObject[] spawnLocations;
     private GameData gameData;
+    [HideInInspector]
+    public Server currentServer;
+    [HideInInspector]
+    public Client currentClient;
 
     void Awake()
     {
@@ -44,27 +45,25 @@ public class ServerManager : MonoBehaviour
         //Instantiate server
         if(gameData.isServer){
             gameData.ipString = IPManager.GetLocalIPAddress();
-            Debug.Log(gameData.ipString);
             
-            Server s = Instantiate(server,transform.position,Quaternion.identity).GetComponent<Server>();
-            s.ipString = gameData.ipString;
-            s.spawnLocations = spawnLocations;
-            ipText.text = "IP: " + gameData.ipString;
+            currentServer = Instantiate(server,transform.position,Quaternion.identity).GetComponent<Server>();
+            currentServer.ipString = gameData.ipString;
+            currentServer.spawnLocations = spawnLocations;
         }
 
         //Instantiate Client
         if(gameData.isClient){
-            GameObject c = Instantiate(client,transform.position,Quaternion.identity);
-            c.GetComponent<Client>().ipAdress = gameData.ipString;
+            currentClient = Instantiate(client,transform.position,Quaternion.identity).GetComponent<Client>();
+            currentClient.ipAdress = gameData.ipString;
 
             //Set player as seeker or hider;
             if(gameData.isServer){
-                c.GetComponent<Client>().seeker = true;
-                c.GetComponent<Player>().ableToMove = 0;
+                currentClient.seeker = true;
             } else {
-                c.GetComponent<Client>().seeker = false;
-                c.GetComponent<Player>().ableToMove = 20;
+                currentClient.seeker = false;
             }
+
+            currentClient.GetComponent<Player>().ableToMove = 0;
         }
         
     }

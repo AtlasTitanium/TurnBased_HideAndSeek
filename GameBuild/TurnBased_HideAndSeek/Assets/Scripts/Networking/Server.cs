@@ -17,6 +17,12 @@ public class Server : MonoBehaviour
     public string ipString;
     [HideInInspector]
     public GameObject[] spawnLocations;
+    [HideInInspector]
+    public int finalScore;
+
+    private float StartSeconds;
+    private bool gameStarted = false;
+
 
     void Start(){
         m_Driver = new UdpCNetworkDriver(new INetworkParameter[0]);
@@ -26,6 +32,8 @@ public class Server : MonoBehaviour
             m_Driver.Listen();
         }
         m_Connections = new NativeList<NetworkConnection>(16, Allocator.Persistent);
+
+        StartSeconds = 10;
     }
 
     public void OnDestroy(){
@@ -35,9 +43,57 @@ public class Server : MonoBehaviour
 
     void FixedUpdate(){
         m_Driver.ScheduleUpdate().Complete();
+        Debug.Log("Connections left: " + m_Connections.Length);
+        Debug.Log("Game started = " + gameStarted);
+
+        if(StartSeconds < 0 && !gameStarted){
+            if(m_Connections.Length <= 1){
+                //start the game, so remove the server from the database so no one can access it anymore
+                Debug.Log("not enough connections");
+                GameData.Instance.Disconnect();
+            } else {
+                Debug.Log("game started");
+                StartGame();
+                StartSeconds = (60 * GameData.Instance.gametimeInMinutes);
+                gameStarted = true;
+            }
+        }
+
+        if(StartSeconds < 0 && gameStarted){
+            Debug.Log("Start Seonds: " + StartSeconds);
+            GameEnd();
+        }
+        if(m_Connections.Length <= 1 && gameStarted){
+            Debug.Log("game end");
+            GameEnd();
+        }
+
         UpdateConnections();
         WorkServer();
         PingClients();
+        StartSeconds -= Time.deltaTime;        
+    }
+
+    public void StartGame(){
+        //Allow the first hider the first turn
+        using (var writer = new DataStreamWriter(8, Allocator.Temp)) {
+            writer.Write((uint)ClientEvent.ALLOW_TURN);
+            m_Connections[1].Send(m_Driver, writer);
+        }
+    }
+
+    public void GameEnd(){
+        Debug.Log("GameEnded");
+
+        for (int i = 0; i < m_Connections.Length; i++){
+            if (!m_Connections[i].IsCreated)
+                continue;
+
+            using (var writer = new DataStreamWriter(8, Allocator.Temp)) {
+                writer.Write((uint)ClientEvent.END_GAME);
+                m_Connections[i].Send(m_Driver, writer);
+            }
+        }
     }
 
     #region Server Functions
@@ -93,6 +149,7 @@ public class Server : MonoBehaviour
     private void PlayerDisconnect(int playerIndex){
         Debug.Log("Client disconnected from server");
         m_Connections[playerIndex] = default(NetworkConnection);
+        finalScore++;
     }
 
     #endregion
@@ -112,25 +169,21 @@ public class Server : MonoBehaviour
         }
     }
     public void RecievePing(){
-        Debug.Log("got ping back");
+        //Debug.Log("got ping back");
     }
     
     #endregion
 
-    //Instantiate client and other enemies for every client
-    public void PlayerInit(NetworkConnection client){
-        // Debug.Log("player joined, id: " + m_Connections.Length);
-        // Debug.Log("Server now has " + m_Connections.Length + " players");
-
-        Debug.Log("spawn location: " + spawnLocations[m_Connections.Length - 1].transform.position);
+    public void PlayerInit(NetworkConnection client){   //Instantiate client and other enemies for every client
         byte[] positionXInBytes = Conversions.VectorAxisToBytes(spawnLocations[m_Connections.Length-1].transform.position.x);
         byte[] positionZInBytes = Conversions.VectorAxisToBytes(spawnLocations[m_Connections.Length-1].transform.position.z);
+
         for (int i = 0; i < m_Connections.Length; i++){
             if (!m_Connections[i].IsCreated)
                 continue;
             
             if(m_Connections[i] != client){
-                //For every client that is not the initializing client, create an enemy on the same location with the right id;
+                //Create enemies for already existing clients
                 using (var writer = new DataStreamWriter(64, Allocator.Temp)) {
                     writer.Write((uint)ClientEvent.CREATE_ENEMY);
 
@@ -148,29 +201,33 @@ public class Server : MonoBehaviour
                 using (var writer = new DataStreamWriter(64, Allocator.Temp)) {
                     writer.Write((uint)ClientEvent.SET_CLIENT);
                     
-                    writer.Write(positionXInBytes.Length);                           //
-                    writer.Write(positionXInBytes, positionXInBytes.Length);         //
+                    writer.Write(positionXInBytes.Length);                           
+                    writer.Write(positionXInBytes, positionXInBytes.Length);         
 
-                    writer.Write(positionZInBytes.Length);                           //
-                    writer.Write(positionZInBytes, positionXInBytes.Length);         //
+                    writer.Write(positionZInBytes.Length);                           
+                    writer.Write(positionZInBytes, positionXInBytes.Length);         
 
                     writer.Write((uint)spawnLocations[m_Connections.Length-1].transform.eulerAngles.y); //Y rotation
+
+                    writer.Write((float)StartSeconds); //float time
 
                     writer.Write((uint)m_Connections.Length);
                     client.Send(m_Driver, writer);
                 }
 
-                //and create enemies of the other connections
+                //And create enemies for initialized
                 for (int f = 0; f < m_Connections.Length; f++){
+                    byte[] positionXInBytes2 = Conversions.VectorAxisToBytes(spawnLocations[f].transform.position.x);
+                    byte[] positionZInBytes2 = Conversions.VectorAxisToBytes(spawnLocations[f].transform.position.z);
                     if(m_Connections[f] != client){
                         using (var writer = new DataStreamWriter(64, Allocator.Temp)) {
                             writer.Write((uint)ClientEvent.CREATE_ENEMY);
 
-                            writer.Write(positionXInBytes.Length);                          
-                            writer.Write(positionXInBytes, positionXInBytes.Length);         
+                            writer.Write(positionXInBytes2.Length);                          
+                            writer.Write(positionXInBytes2, positionXInBytes.Length);         
 
-                            writer.Write(positionZInBytes.Length);                         
-                            writer.Write(positionZInBytes, positionXInBytes.Length);         
+                            writer.Write(positionZInBytes2.Length);                         
+                            writer.Write(positionZInBytes2, positionXInBytes.Length);         
 
                             writer.Write((uint)f+1);
                             client.Send(m_Driver, writer);
@@ -183,8 +240,7 @@ public class Server : MonoBehaviour
         PingClients();
     }
 
-    //Move the player around
-    public void MovePlayer(Vector2 pos, int rot, int clientID, NetworkConnection client){
+    public void MovePlayer(Vector2 pos, int rot, int clientID, NetworkConnection client){   //Move the player around
         byte[] positionXInBytes = Conversions.VectorAxisToBytes(pos.x);
         byte[] positionZInBytes = Conversions.VectorAxisToBytes(pos.y);
 
@@ -211,8 +267,7 @@ public class Server : MonoBehaviour
         }
     }
 
-    //Allow the next player the turn
-    public void NextClient(NetworkConnection client){
+    public void NextClient(NetworkConnection client){   //Allow the next player the turn
         for (int i = 0; i < m_Connections.Length; i++){
             if (!m_Connections[i].IsCreated)
                 continue;
@@ -229,9 +284,8 @@ public class Server : MonoBehaviour
             }
         }
     }
-
-    //Change the given client into a different object (hider ability)
-    public void ChangePlayer(bool active, int clientID, NetworkConnection client){
+    
+    public void ChangePlayer(bool active, int clientID, NetworkConnection client){  //Change the given client into a different object (hider ability)
         for (int i = 0; i < m_Connections.Length; i++){
             if (!m_Connections[i].IsCreated)
                 continue;
@@ -250,6 +304,54 @@ public class Server : MonoBehaviour
                 }
             }
         }
+    }
+    
+    public void CheckEnemy(int enemyID, bool isSeeker, NetworkConnection client){   //check the given enemy id and send if the checker is a seeker
+        for (int i = 0; i < m_Connections.Length; i++){
+            if (!m_Connections[i].IsCreated)
+                continue;
+
+            if(m_Connections[i] != client){
+                using (var writer = new DataStreamWriter(64, Allocator.Temp)) {
+                    writer.Write((uint)ClientEvent.CHECKED);
+                    writer.Write((uint)enemyID);
+                    if(isSeeker){
+                        writer.Write((uint)1);
+                    } else {
+                        writer.Write((uint)0);
+                    }
+                    m_Connections[i].Send(m_Driver, writer);
+                }
+            }
+        }
+    }
+    
+    public void DisconnectAllPlayers(){  //Disconnect all players
+        Debug.Log("Disconnect all players");
+
+        for (int i = 0; i < m_Connections.Length; i++){
+            if (!m_Connections[i].IsCreated)
+                continue;
+
+            using (var writer = new DataStreamWriter(64, Allocator.Temp)) {
+                writer.Write((uint)ClientEvent.DISCONNECT);
+                m_Connections[i].Send(m_Driver, writer);
+            }
+        }
+    }
+    
+    public void DisconnectPlayer(int playerID, NetworkConnection client){   //disconnect given player
+        for (int i = 0; i < m_Connections.Length; i++){
+            if (!m_Connections[i].IsCreated)
+                continue;
+
+            using (var writer = new DataStreamWriter(64, Allocator.Temp)) {
+                writer.Write((uint)ClientEvent.DISCONNECT_ENEMY);
+                writer.Write((uint)playerID);
+                m_Connections[i].Send(m_Driver, writer);
+            }
+        }
+        Debug.Log("4. disconnect enemy");
     }
     
     #endregion

@@ -15,7 +15,9 @@ public class ServerEventManager
         {ServerEvent.INITIALIZE_PLAYER, PlayerInit},
         {ServerEvent.MOVE_CLIENT, MoveClient},
         {ServerEvent.SKIP_TURN, NextClient},
-        {ServerEvent.CHANGE_PLAYER, ChangePlayer}
+        {ServerEvent.CHANGE_PLAYER, ChangePlayer},
+        {ServerEvent.DISCONNECT_PLAYER, DisconnectPlayer},
+        {ServerEvent.CHECK_ENEMY, CheckEnemy}
     };
 
     public static void Ping(object caller, DataStreamReader stream, ref DataStreamReader.Context context, NetworkConnection source) {
@@ -68,5 +70,29 @@ public class ServerEventManager
         int id = stream.ReadInt(ref context);
 
         server.ChangePlayer(active, id, source);
+    }
+
+    public static void DisconnectPlayer(object caller, DataStreamReader stream, ref DataStreamReader.Context context, NetworkConnection source) {
+        Server server = caller as Server;
+
+        int id = stream.ReadInt(ref context);
+        
+        server.DisconnectPlayer(id, source);
+    }
+
+    public static void CheckEnemy(object caller, DataStreamReader stream, ref DataStreamReader.Context context, NetworkConnection source) {
+        Server server = caller as Server;
+
+        int id = stream.ReadInt(ref context);
+        
+        int seeker = stream.ReadInt(ref context);
+        bool isSeeker;
+        if(seeker >= 1){
+            isSeeker = true;
+        } else {
+            isSeeker = false;
+        }
+        
+        server.CheckEnemy(id, isSeeker, source);
     }
 }

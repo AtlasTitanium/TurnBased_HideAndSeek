@@ -70,4 +70,18 @@ public static class Conversions
         return one * one;
     }
 
+    //convert int to time
+    public static string toTime(int _time){
+        string timeString = "";
+        int minutes = 0;
+        while(_time > 59){
+            minutes++;
+            _time -= 60;
+        }
+        int seconds = _time;
+        
+        timeString = minutes + ":" + seconds;
+        return timeString;
+    }
+
 }

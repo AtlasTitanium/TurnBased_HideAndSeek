@@ -1,32 +1,106 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class Player : MonoBehaviour
 {
-    public int ableToMove = 0;
-    public bool abilityActive = true;
-
+    //Publics
+    [Header("AbilitySpecifics")]
+    public int stepsPerTurn;
     public int seekerAbilityCooldown = 5;
     public int hiderAbilityCooldown = 10;
 
+    [Header("CheckLayers")]
     public LayerMask wallLayer;
+    public LayerMask enemyLayer;
     public LayerMask hiderObjectLayer;
+
+    [Header("UI control")]
+    public Text title;
+    public Text username;
+    public Text countDownTime;
+    public Text time;
+    public Text stepsLeft;
+    public RectTransform abilitySlider;
+    public Button disconnect;
+
+
+    
+    //public but unchangable variables
+    [HideInInspector]
+    public bool abilityActive = true;
+    [HideInInspector]
+    public int ableToMove = 0;
+    [HideInInspector]
+    public int realTime;
+
+    //private variables
     private GameObject hiderObject;
+    private Client client;
+    private float actualTime;
     private float originalObjHeight;
     private float originalHeight;
-
-    private Client client;
+    private bool uiInit = true;
     private bool moved;
+
 
     void Start(){
         client = GetComponent<Client>();
+
+        if(client.seeker){
+            title.text = "Seeker";
+        } else {
+            title.text = "Hider";
+        }
+        username.text = GameData.Instance.GetUsername();
+        disconnect.onClick.AddListener(Disconnect);
+    }
+
+    public void Disconnect(){
+        GameData.Instance.Disconnect();
     }
 
     void Update(){
+        //control ui
+        if(username.text == ""){
+            username.text = GameData.Instance.GetUsername() + " id= " + client.playerID;
+        }
+
+        if(client.startTime > 0 && uiInit){
+            actualTime = client.startTime;
+            uiInit = false;
+        }
+
+        if(countDownTime.isActiveAndEnabled && !uiInit){
+            if(actualTime > 0){
+                time.gameObject.SetActive(false);
+                actualTime -= Time.deltaTime;
+                realTime = Mathf.RoundToInt(actualTime);
+                countDownTime.text = realTime.ToString();
+            } else {
+                countDownTime.gameObject.SetActive(false);
+                time.gameObject.SetActive(true);
+                actualTime = (60 * GameData.Instance.gametimeInMinutes);
+            }
+        } else if(time.isActiveAndEnabled  && !uiInit) {
+            if(actualTime > 0){
+                actualTime -= Time.deltaTime;
+                realTime = Mathf.RoundToInt(actualTime);
+                time.text = Conversions.toTime(realTime);
+            }
+        }
+
+        stepsLeft.text = "Steps left: " + ableToMove;
+      
+        abilitySlider.anchorMax = new Vector2(1, (float)client.cooldownTimer / (float)seekerAbilityCooldown);
+        abilitySlider.offsetMax = new Vector2 (0, 0);
+        
+
         //move player
         if(ableToMove > 0){
             Vector3 checkSize = new Vector3(0.5f,1f,0.5f);
+
             if(Input.GetKeyDown(KeyCode.W)){
                 if(!Physics.CheckBox(transform.position+transform.forward, checkSize, Quaternion.identity, wallLayer)){
                     transform.Translate(Vector3.forward);
@@ -78,8 +152,15 @@ public class Player : MonoBehaviour
 
             //skip turn
             if(Input.GetKeyDown(KeyCode.Space)){
+                if(Physics.CheckBox(transform.position+transform.forward, checkSize, Quaternion.identity, enemyLayer)){
+                    Collider[] c = Physics.OverlapBox(transform.position+transform.forward, checkSize, Quaternion.identity, enemyLayer);
+                    if(c.Length >= 1){
+                        client.CheckEnemy(c[0].gameObject.GetComponent<Enemy>().id);
+                        return;
+                    }
+                } 
                 SkipTurn();
-                ableToMove--;
+                ableToMove = 0;
             }
         }
 

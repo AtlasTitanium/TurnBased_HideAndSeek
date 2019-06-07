@@ -9,31 +9,35 @@ public class GameMenu : MonoBehaviour
     [Header("UI elements")]
     public Button hostGame;
     public Button joinGame;
+    public Button logOut;
     public InputField serverName;
-
-    [Header("Game Elements")]
-    public GameData gameData;
+    
 
     void Start(){
         hostGame.onClick.AddListener(StartHost);
         joinGame.onClick.AddListener(StartJoin);
+        logOut.onClick.AddListener(LogOutUser);
     }
 
     void StartHost(){
         if(serverName.text != ""){
-            gameData.StartServer();
-            //StartCoroutine(CreateHost());
+            StartCoroutine(CreateLocalHost());
         }
         
     }
 
     void StartJoin(){
         if(serverName.text != ""){
-            gameData.StartClient(serverName.text);
-            //StartCoroutine(CreateClient());
+            StartCoroutine(CreateLocalClient());
         }
     }
 
+    void LogOutUser(){
+        GameData.Instance.LogOut();
+    }
+
+    #region Server connect
+    //Create server on school server
     IEnumerator CreateHost(){
         WWWForm form = new WWWForm();
         form.AddField("name", serverName.text);
@@ -42,10 +46,37 @@ public class GameMenu : MonoBehaviour
         yield return www.SendWebRequest();
         Debug.Log(www.downloadHandler.text);
         if(www.downloadHandler.text == "0"){
-            gameData.StartServer();
+            GameData.Instance.StartServer();
+        }
+        
+        //check for connect error
+        if(www.downloadHandler.text.Contains("Failed")){
+            Debug.Log("School servers out");
+            
         }
     }
 
+    //Create server locally with xampp
+    IEnumerator CreateLocalHost(){
+        WWWForm form = new WWWForm();
+        form.AddField("name", serverName.text);
+        form.AddField("ip", IPManager.GetLocalIPAddress());
+        UnityWebRequest www = UnityWebRequest.Post("http://127.0.0.1/PHPstuff/CreateServer.php", form);
+        yield return www.SendWebRequest();
+        if(www.downloadHandler.text == "0"){
+            GameData.Instance.StartServer();
+        }
+        
+        //check for connect error
+        if(www.downloadHandler.text.Contains("Failed")){
+            StartCoroutine(CreateHost());
+        }
+    }
+
+    #endregion
+
+    #region Client connect
+    //join client on school server
     IEnumerator CreateClient(){
         WWWForm form = new WWWForm();
         form.AddField("name", serverName.text);
@@ -53,12 +84,38 @@ public class GameMenu : MonoBehaviour
         yield return www.SendWebRequest();
         string[] ipAdressNumbers = www.downloadHandler.text.Split('.');
         if(ipAdressNumbers.Length == 4){
-            Debug.Log(www.downloadHandler.text);
-            gameData.StartClient(www.downloadHandler.text);
+            GameData.Instance.StartClient(www.downloadHandler.text);
         } else {
             Debug.LogError("Error: ip is not correct - your given ip adress either contains not enough numbers, or too many");
         }
+
+        //check for connect error
+        if(www.downloadHandler.text.Contains("Failed")){
+            Debug.Log("School servers out");
+            
+        }
     }
+
+    //join client locally with xampp
+    IEnumerator CreateLocalClient(){
+        WWWForm form = new WWWForm();
+        form.AddField("name", serverName.text);
+        UnityWebRequest www = UnityWebRequest.Post("http://127.0.0.1/PHPstuff/JoinServer.php", form);
+        yield return www.SendWebRequest();
+        string[] ipAdressNumbers = www.downloadHandler.text.Split('.');
+        if(ipAdressNumbers.Length == 4){
+            GameData.Instance.StartClient(www.downloadHandler.text);
+        } else {
+            Debug.LogError("Error: ip is not correct - your given ip adress either contains not enough numbers, or too many");
+        }
+
+        //check for connect error
+        if(www.downloadHandler.text.Contains("Failed")){
+            StartCoroutine(CreateClient());
+        }
+    }
+
+    #endregion
 }
 
 

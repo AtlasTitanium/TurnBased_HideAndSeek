@@ -11,20 +11,23 @@ public class Client : MonoBehaviour
     public GameObject enemyPrefab;
     public UdpNetworkDriver m_Driver;
     public NetworkConnection m_Connection;
+    public uint playerID;
 
     //initializable variables
-    [HideInInspector]
-    public uint playerID;
     [HideInInspector]
     public string ipAdress;
     [HideInInspector]
     public bool seeker = false;
+    [HideInInspector]
+    public float startTime = 0;
+    [HideInInspector]
+    public int cooldownTimer = 5;
 
     //Privates
     private Player playerController;
     private List<Enemy> enemies = new List<Enemy>();
     private bool connected;
-    private int cooldownTimer;
+    
 
     void Start () { 
         playerController = GetComponent<Player>();
@@ -36,7 +39,13 @@ public class Client : MonoBehaviour
         var endpoint = NetworkEndPoint.Parse(ipAdress, 9000);
         m_Connection = m_Driver.Connect(endpoint);
 
-        StartCoroutine(WaitIfConnected(15));
+        StartCoroutine(WaitIfConnected(30));
+        
+        if(seeker){
+            cooldownTimer = playerController.seekerAbilityCooldown;
+        } else {
+            cooldownTimer = playerController.hiderAbilityCooldown;
+        }
     }
 
     public void OnDestroy() { 
@@ -149,13 +158,12 @@ public class Client : MonoBehaviour
 
     //it's this client's turn!
     public void NextTurn(){
-        playerController.ableToMove = 1;
+        playerController.ableToMove = playerController.stepsPerTurn;
 
         if(!playerController.abilityActive){
             cooldownTimer++;
             if(seeker){
                 if(playerController.seekerAbilityCooldown == cooldownTimer){
-                    cooldownTimer = 0;
                     playerController.abilityActive = true;
                 }
             } else {
@@ -168,7 +176,6 @@ public class Client : MonoBehaviour
                         m_Connection.Send(m_Driver, writer);
                     }
                     playerController.RemoveHider();
-                    cooldownTimer = 0;
                     playerController.abilityActive = true;
                 }
             }
@@ -185,6 +192,51 @@ public class Client : MonoBehaviour
                     enemy.RemoveHider();
                 }
             }
+        }
+    }
+
+    //checked by another player
+    public void CheckedByPlayer(bool isSeeker, int id){
+        if(id == this.playerID){
+            if(!seeker && isSeeker){
+                m_Connection.Disconnect(m_Driver);
+                Debug.Log("1. disconnect Hider");
+                GameData.Instance.EndGame(playerController.realTime, false);
+            }
+        }
+    }
+
+    //disconnect player
+    public void Disconnect(){
+        Debug.Log("Just disconnect, no game end");
+        m_Connection.Disconnect(m_Driver);
+        GameData.Instance.DisconnectClient();
+    }
+
+    //disconnect enemy
+    public void DisconnectEnemy(int enemyID){
+        if(enemyID == playerID){
+            Disconnect();
+        } else {
+            foreach(Enemy enemy in enemies){
+                if(enemy.id == enemyID){
+                    Destroy(enemy.gameObject);
+                    enemies.Remove(enemy);
+                    Debug.Log("6. disconnect enemy");
+                }
+            }
+        }
+    }
+
+    //Game ended
+    public void GameEnd(){
+        m_Connection.Disconnect(m_Driver);
+        if(seeker){
+            Debug.Log("2. disconnect Seeker");
+            GameData.Instance.EndGame(ServerManager.Instance.currentServer.finalScore, true);
+        } else {
+            Debug.Log("2. disconnect Hider");
+            GameData.Instance.EndGame(300, false);
         }
     }
 
@@ -217,7 +269,7 @@ public class Client : MonoBehaviour
     public void Ability(){
         if(seeker){
             //able to move multiple times at once
-            playerController.ableToMove += seekerAmountOfAbilitySteps;
+            playerController.ableToMove += seekerAmountOfAbilitySteps + 1;
             playerController.abilityActive = false;
         } else {
             Collider[] hitColliders = Physics.OverlapBox(transform.position+transform.forward, new Vector3(0.8f,2f,0.8f), Quaternion.identity, playerController.hiderObjectLayer);
@@ -239,14 +291,39 @@ public class Client : MonoBehaviour
             playerController.ableToMove++;
         }
 
-        
+        cooldownTimer = 0;
+    }
+
+    //check the enemy in front
+    public void CheckEnemy(int enemyID){
+        //check the enemy
+        using (var writer = new DataStreamWriter(64, Allocator.Temp)) {
+            writer.Write((uint)ServerEvent.CHECK_ENEMY);
+            writer.Write((uint)enemyID);
+            if(seeker){
+                writer.Write((uint)1);
+            } else {
+                writer.Write((uint)0);
+            }
+            m_Connection.Send(m_Driver, writer);
+        }
     }
     
     //End the player's turn
     public void EndTurn(){
         //end turn
-        using (var writer = new DataStreamWriter(64, Allocator.Temp)) {
+        using (var writer = new DataStreamWriter(8, Allocator.Temp)) {
             writer.Write((uint)ServerEvent.SKIP_TURN);
+            m_Connection.Send(m_Driver, writer);
+        }
+    }
+
+    //Disconnect this player
+    public void DisconnectThisPlayer(){
+        Debug.Log("3. disconnect enemy");
+        using (var writer = new DataStreamWriter(16, Allocator.Temp)) {
+            writer.Write((uint)ServerEvent.DISCONNECT_PLAYER);
+            writer.Write((uint)playerID);
             m_Connection.Send(m_Driver, writer);
         }
     }
