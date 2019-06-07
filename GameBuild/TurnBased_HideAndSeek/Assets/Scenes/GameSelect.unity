@@ -626,7 +626,7 @@ MonoBehaviour:
   menuSceneName: GameSelect
   gameSceneName: ServerTest
   endgameSceneName: EndGame
-  gametimeInMinutes: 1
+  gametimeInMinutes: 5
   ipString: 
   isClient: 0
   isServer: 0

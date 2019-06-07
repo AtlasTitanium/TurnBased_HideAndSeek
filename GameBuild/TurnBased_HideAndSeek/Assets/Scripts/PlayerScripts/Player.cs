@@ -64,7 +64,7 @@ public class Player : MonoBehaviour
     void Update(){
         //control ui
         if(username.text == ""){
-            username.text = GameData.Instance.GetUsername() + " id= " + client.playerID;
+            username.text = GameData.Instance.GetUsername();
         }
 
         if(client.startTime > 0 && uiInit){
