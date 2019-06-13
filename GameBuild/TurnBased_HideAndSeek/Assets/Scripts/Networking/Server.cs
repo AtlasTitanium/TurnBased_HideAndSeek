@@ -33,7 +33,7 @@ public class Server : MonoBehaviour
         }
         m_Connections = new NativeList<NetworkConnection>(16, Allocator.Persistent);
 
-        StartSeconds = 30;
+        StartSeconds = 20;
     }
 
     public void OnDestroy(){
