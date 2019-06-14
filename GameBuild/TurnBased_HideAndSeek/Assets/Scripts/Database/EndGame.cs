@@ -11,8 +11,9 @@ public class EndGame : MonoBehaviour
     public Text score;
     public Button end;
     public string mainMenuSceneName;
-
+    private string DatabaseID;
     void Start(){
+        DatabaseID = CurrentDatabaseID.Instance.id;
         end.onClick.AddListener(ReturntoMenu);
 
         if(GameData.Instance.isSeeker){
@@ -54,6 +55,10 @@ public class EndGame : MonoBehaviour
 
         UnityWebRequest www = UnityWebRequest.Post("https://studenthome.hku.nl/~pepijn.kok/PHPstuff/SetScore.php", form);
         yield return www.SendWebRequest();
+        Debug.Log(www.downloadHandler.text);
+        if(www.isNetworkError){
+            Debug.Log("NetworkError");
+        } else
         if(www.downloadHandler.text.Contains("ERROR")){
             Debug.Log("Can't set score");
         }
@@ -69,8 +74,12 @@ public class EndGame : MonoBehaviour
         form.AddField("score", GameData.Instance.finalScore);
         form.AddField("isSeeker", 1);
 
-        UnityWebRequest www = UnityWebRequest.Post("http://127.0.0.1/PHPstuff/SetScore.php", form);
+        UnityWebRequest www = UnityWebRequest.Post("http://" + DatabaseID + "/PHPstuff/SetScore.php", form);
         yield return www.SendWebRequest();
+        Debug.Log(www.downloadHandler.text);
+        if(www.isNetworkError){
+            Debug.Log("NetworkError");
+        } else
         if(www.downloadHandler.text.Contains("ERROR")){
             Debug.Log("Can't set score");
         }
@@ -89,6 +98,10 @@ public class EndGame : MonoBehaviour
 
         UnityWebRequest www = UnityWebRequest.Post("https://studenthome.hku.nl/~pepijn.kok/PHPstuff/SetScore.php",form);
         yield return www.SendWebRequest();
+        Debug.Log(www.downloadHandler.text);
+        if(www.isNetworkError){
+            Debug.Log("NetworkError");
+        } else
         if(www.downloadHandler.text.Contains("ERROR")){
             Debug.Log("Can't set score");;
         }
@@ -104,8 +117,12 @@ public class EndGame : MonoBehaviour
         form.AddField("score", GameData.Instance.finalScore);
         form.AddField("isSeeker", 0);
 
-        UnityWebRequest www = UnityWebRequest.Post("http://127.0.0.1/PHPstuff/SetScore.php",form);
+        UnityWebRequest www = UnityWebRequest.Post("http://" + DatabaseID + "/PHPstuff/SetScore.php",form);
         yield return www.SendWebRequest();
+        Debug.Log(www.downloadHandler.text);
+        if(www.isNetworkError){
+            Debug.Log("NetworkError");
+        } else
         if(www.downloadHandler.text.Contains("ERROR")){
             Debug.Log("Can't set score");
         }

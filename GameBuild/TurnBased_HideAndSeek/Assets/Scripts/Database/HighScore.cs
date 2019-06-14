@@ -9,7 +9,9 @@ public class HighScore : MonoBehaviour
     public Text hiderHighScore;
     public Text seekerHighScore;
 
+    private string DatabaseID;
     void Start(){
+        DatabaseID = CurrentDatabaseID.Instance.id;
         StartCoroutine(GetHighScore_Hider());
         StartCoroutine(GetHighScore_Seeker());
     }
@@ -32,7 +34,7 @@ public class HighScore : MonoBehaviour
     }
 
     IEnumerator GetHighScore_Hider(){
-        UnityWebRequest www = UnityWebRequest.Get("http://127.0.0.1/PHPstuff/GetHighScore_Hider.php");
+        UnityWebRequest www = UnityWebRequest.Get("http://" + DatabaseID + "/PHPstuff/GetHighScore_Hider.php");
         yield return www.SendWebRequest();
 
         //check for errors
@@ -66,7 +68,7 @@ public class HighScore : MonoBehaviour
     }
 
     IEnumerator GetHighScore_Seeker(){
-        UnityWebRequest www = UnityWebRequest.Get("http://127.0.0.1/PHPstuff/GetHighScore_Seeker.php");
+        UnityWebRequest www = UnityWebRequest.Get("http://" + DatabaseID + "/PHPstuff/GetHighScore_Seeker.php");
         yield return www.SendWebRequest();
 
         //check for errors

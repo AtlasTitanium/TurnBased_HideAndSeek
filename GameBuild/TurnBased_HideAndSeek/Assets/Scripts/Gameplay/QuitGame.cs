@@ -12,6 +12,9 @@ public static class QuitGame {
 
     static bool WantsToQuit()
     {
+        if(GameData.Instance == null){
+            return true;
+        } else 
         if (GameData.Instance.isClient) {
             Debug.Log("Client still on");
             return false;
