@@ -13,7 +13,9 @@ public class GameMenu : MonoBehaviour
     public InputField serverName;
     
 
+    private string DatabaseID;
     void Start(){
+        DatabaseID = CurrentDatabaseID.Instance.id;
         hostGame.onClick.AddListener(StartHost);
         joinGame.onClick.AddListener(StartJoin);
         logOut.onClick.AddListener(LogOutUser);
@@ -61,7 +63,7 @@ public class GameMenu : MonoBehaviour
         WWWForm form = new WWWForm();
         form.AddField("name", serverName.text);
         form.AddField("ip", IPManager.GetLocalIPAddress());
-        UnityWebRequest www = UnityWebRequest.Post("http://127.0.0.1/PHPstuff/CreateServer.php", form);
+        UnityWebRequest www = UnityWebRequest.Post("http://" + DatabaseID + "/PHPstuff/CreateServer.php", form);
         yield return www.SendWebRequest();
         if(www.downloadHandler.text == "0"){
             GameData.Instance.StartServer();
@@ -100,7 +102,7 @@ public class GameMenu : MonoBehaviour
     IEnumerator CreateLocalClient(){
         WWWForm form = new WWWForm();
         form.AddField("name", serverName.text);
-        UnityWebRequest www = UnityWebRequest.Post("http://127.0.0.1/PHPstuff/JoinServer.php", form);
+        UnityWebRequest www = UnityWebRequest.Post("http://" + DatabaseID + "/PHPstuff/JoinServer.php", form);
         yield return www.SendWebRequest();
         string[] ipAdressNumbers = www.downloadHandler.text.Split('.');
         if(ipAdressNumbers.Length == 4){

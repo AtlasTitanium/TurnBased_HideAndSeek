@@ -31,6 +31,7 @@ public class GameData : MonoBehaviour
     public int finalScore;
     [HideInInspector]
     public bool isSeeker;
+    private string DatabaseID;
     void Awake()
     {
         if (_instance != null && _instance != this)
@@ -41,6 +42,9 @@ public class GameData : MonoBehaviour
         }
 
         DontDestroyOnLoad(this.gameObject);
+    }
+    void Start(){
+        DatabaseID = CurrentDatabaseID.Instance.id;
     }
 
     #region Work Server
@@ -152,7 +156,7 @@ public class GameData : MonoBehaviour
     }
 
     IEnumerator LocalLogout(){
-        UnityWebRequest www = UnityWebRequest.Get("http://127.0.0.1/PHPstuff/Logout.php");
+        UnityWebRequest www = UnityWebRequest.Get("http://" + DatabaseID + "/PHPstuff/Logout.php");
         yield return www.SendWebRequest();
         if(www.downloadHandler.text.Contains("ERROR")){
             Debug.Log("Can't logout");
@@ -189,7 +193,7 @@ public class GameData : MonoBehaviour
     }
 
     IEnumerator GetUsernameLocally(){
-        UnityWebRequest www = UnityWebRequest.Get("http://127.0.0.1/PHPstuff/GetUsername.php");
+        UnityWebRequest www = UnityWebRequest.Get("http://" + DatabaseID + "/PHPstuff/GetUsername.php");
         yield return www.SendWebRequest();
         if(www.downloadHandler.text.Contains("ERROR")){
             Debug.Log("Can't get username");
