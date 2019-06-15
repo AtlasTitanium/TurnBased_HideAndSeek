@@ -53,23 +53,6 @@ public static class Conversions
         return (double)Mathf.Round(value * mult) / mult;
     }
 
-    //Calculate a line between two vector points
-    public static Vector2 CalculateLine(Vector2 x1, Vector2 x2, double distance) {
-        //calculate length with Pythagoras
-        double length = Math.Sqrt(multiply(x2.x - x1.x) + multiply((x2.y - x1.y)));
-        double unitSlopeX = (x2.x - x1.x) / length;
-        double unitSlopeY = (x2.y - x1.y) / length;
-        double x = x1.x + unitSlopeX * distance;
-        double y = x1.y + unitSlopeY * distance;
-        return new Vector2((float)x, (float)y);
-    }
-
-
-    //multiply any number
-    public static double multiply(double one) {
-        return one * one;
-    }
-
     //convert int to time
     public static string toTime(int _time){
         string timeString = "";
