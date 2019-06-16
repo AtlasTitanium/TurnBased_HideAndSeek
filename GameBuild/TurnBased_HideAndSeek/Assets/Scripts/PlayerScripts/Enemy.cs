@@ -5,8 +5,8 @@ using UnityEngine;
 public class Enemy : MonoBehaviour
 {
     public int id;
-
     public LayerMask hiderObjectLayer;
+    
     private GameObject hiderObject;
     private float originalObjHeight;
     private float originalHeight;

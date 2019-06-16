@@ -118,7 +118,7 @@ public class GameData : MonoBehaviour
     IEnumerator LocalRemoveServer(){
         WWWForm form = new WWWForm();
         form.AddField("ip", IPManager.GetLocalIPAddress());
-        UnityWebRequest www = UnityWebRequest.Post("http://127.0.0.1/PHPstuff/RemoveServer.php", form);
+        UnityWebRequest www = UnityWebRequest.Post("http://" + DatabaseID + "/PHPstuff/RemoveServer.php", form);
         yield return www.SendWebRequest();
         if(www.downloadHandler.text == "0"){
             Debug.Log("Server removed");
